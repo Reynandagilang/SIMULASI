@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Casino Grade Slot Machine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@700&display=swap');
+        .font-mono-slot { font-family: 'Roboto Mono', monospace; }
+        .slot-body {
+            background: linear-gradient(180deg, #2d3748, #1a202c);
+            border-radius: 20px;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.6);
+            border: 2px solid #4a5568;
+        }
+        .reel-container {
+            width: 100px;
+            height: 300px;
+            border-radius: 12px;
+            overflow: hidden;
+            background-color: #0d121c;
+            border: 4px solid #facc15;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.8), 0 4px 14px rgba(0, 0, 0, 0.5);
+        }
+        .reel-inner {
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+        .symbol {
+            width: 100px;
+            height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 4rem;
+            line-height: 1;
+            font-weight: bold;
+        }
+        .highlight {
+            animation: highlight-symbol 1s infinite alternate;
+        }
+        @keyframes highlight-symbol {
+            from { transform: scale(1); box-shadow: 0 0 0px #fff; }
+            to { transform: scale(1.1); box-shadow: 0 0 10px #fff; }
+        }
+        .pulse-red {
+            animation: pulse-red 1s infinite alternate;
+        }
+        @keyframes pulse-red {
+            from { box-shadow: 0 0 0 rgba(255, 0, 0, 0.4); }
+            to { box-shadow: 0 0 10px rgba(255, 0, 0, 0.8); }
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.75);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white flex items-center justify-center min-h-screen p-4">
+
+    <div id="game-container" class="slot-body p-8 rounded-2xl shadow-2xl w-full max-w-lg relative">
+        <h1 class="text-4xl lg:text-5xl font-bold text-center mb-4 text-yellow-400 font-mono-slot">REALISTIC SLOT</h1>
+        <p class="text-center text-gray-400 mb-6 text-sm lg:text-base">SPIN untuk pengalaman otentik! 🎰</p>
+
+        <div class="flex flex-col items-center justify-center mb-6 px-2 py-2 md:py-4 bg-gray-900 rounded-lg border-2 border-red-500 shadow-inner">
+            <span class="block text-red-500 text-xs md:text-sm font-bold font-mono-slot">JACKPOT PROGRESSIVE</span>
+            <span id="jackpot" class="text-2xl md:text-3xl font-bold text-yellow-400 font-mono-slot">100000</span>
+        </div>
+
+        <div class="flex justify-between items-center mb-6 px-2 py-4 bg-gray-700 rounded-lg">
+            <div class="text-center">
+                <span class="block text-gray-400 text-xs md:text-sm">COIN</span>
+                <span id="credits" class="text-2xl md:text-3xl font-bold text-green-400 font-mono-slot">10000</span>
+            </div>
+            <div class="text-center">
+                <span class="block text-gray-400 text-xs md:text-sm">BET/LINE</span>
+                <span id="betPerLine" class="text-xl md:text-2xl font-bold text-red-400 font-mono-slot">20</span>
+            </div>
+            <div class="text-center">
+                <span class="block text-gray-400 text-xs md:text-sm">LINES</span>
+                <span id="paylinesCount" class="text-xl md:text-2xl font-bold text-blue-400 font-mono-slot">1</span>
+            </div>
+        </div>
+        <div class="text-center mb-4">
+            <span class="block text-gray-400 text-sm">TOTAL BET</span>
+            <span id="totalBet" class="text-2xl md:text-3xl font-bold text-red-400 font-mono-slot">20</span>
+        </div>
+        
+        <div id="slots" class="flex justify-center gap-2 md:gap-4 mb-8 relative">
+            <div class="reel-container w-24 md:w-32 h-72 md:h-96"><div id="reel1" class="reel-inner"></div></div>
+            <div class="reel-container w-24 md:w-32 h-72 md:h-96"><div id="reel2" class="reel-inner"></div></div>
+            <div class="reel-container w-24 md:w-32 h-72 md:h-96"><div id="reel3" class="reel-inner"></div></div>
+        </div>
+
+        <div class="flex justify-center gap-2 md:gap-4 mb-4">
+            <button id="betDownBtn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 md:px-6 rounded-full text-sm md:text-lg transition-all duration-200">-</button>
+            <button id="betUpBtn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 md:px-6 rounded-full text-sm md:text-lg transition-all duration-200">+</button>
+        </div>
+        <div class="flex justify-center gap-2 md:gap-4 mb-6">
+            <button id="paylineDownBtn" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 md:px-6 rounded-full text-sm md:text-lg transition-all duration-200">LINES -</button>
+            <button id="paylineUpBtn" class="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 md:px-6 rounded-full text-sm md:text-lg transition-all duration-200">LINES +</button>
+        </div>
+
+        <div class="flex flex-col items-center">
+            <button id="spinBtn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-12 md:px-16 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105 uppercase text-xl md:text-2xl">
+                SPIN
+            </button>
+            <div class="flex gap-2 md:gap-4 mt-4">
+                <button id="autoSpin5Btn" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 md:px-6 rounded-full text-sm md:text-lg transition-all duration-200">AUTO 5x</button>
+                <button id="autoSpin10Btn" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 md:px-6 rounded-full text-sm md:text-lg transition-all duration-200">AUTO 10x</button>
+                <button id="maxBetBtn" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 md:px-6 rounded-full text-sm md:text-lg transition-all duration-200">MAX BET</button>
+            </div>
+            <p id="message" class="mt-4 text-center text-xl font-semibold text-sm md:text-base"></p>
+        </div>
+
+        <div class="flex flex-col items-center mt-6">
+            <button id="topupBtn" class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 md:px-6 rounded-full shadow-md transition-all duration-300 transform hover:scale-105 text-sm md:text-lg">
+                Top Up 10000 Koin
+            </button>
+            <button id="buyMembershipBtn" class="mt-4 bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 md:px-6 rounded-full shadow-md transition-all duration-300 transform hover:scale-105 text-sm md:text-lg">
+                Bayar Membership (Rp 10.500)
+            </button>
+        </div>
+        <div class="text-center mt-6">
+            <span class="block text-gray-400 text-sm">LAST WIN</span>
+            <span id="lastWin" class="text-xl md:text-3xl font-bold text-blue-400 font-mono-slot">0</span>
+        </div>
+
+        <div class="mt-8 text-center text-gray-400">
+            <h3 class="font-bold text-lg mb-2 text-yellow-300">PAYTABLE</h3>
+            <ul class="list-none p-0 space-y-1 text-xs md:text-sm">
+                <li class="flex justify-between"><span>🤖 🤖 🤖</span> <span class="text-yellow-400 font-bold">50x BET</span></li>
+                <li class="flex justify-between"><span>🧠 🧠 🧠</span> <span class="text-yellow-400 font-bold">20x BET</span></li>
+                <li class="flex justify-between"><span>💡 💡 💡</span> <span class="text-yellow-400 font-bold">10x BET</span></li>
+                <li class="flex justify-between"><span>💻 💻 💻</span> <span class="text-yellow-400 font-bold">5x BET</span></li>
+                <li class="flex justify-between"><span>⚙️ ⚙️ ⚙️</span> <span class="text-yellow-400 font-bold">3x BET</span></li>
+                <li class="flex justify-between"><span>✨ = WILD (Menggantikan simbol lain)</span></li>
+                <li class="flex justify-between"><span>💎 💎 💎</span> <span class="text-yellow-400 font-bold">3+ = FREE SPINS!</span></li>
+            </ul>
+        </div>
+    </div>
+
+    <div id="auth-modal" class="modal-overlay hidden">
+        <div class="slot-body p-8 rounded-2xl shadow-2xl w-full max-w-sm relative">
+            <h2 id="auth-title" class="text-3xl font-bold text-center mb-6 text-yellow-400">LOGIN</h2>
+            <form id="auth-form" class="w-full">
+                <div class="mb-4">
+                    <label for="username" class="block text-gray-400 mb-2">Username</label>
+                    <input type="text" id="username" class="w-full p-2 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-yellow-400">
+                </div>
+                <div class="mb-6">
+                    <label for="password" class="block text-gray-400 mb-2">Password</label>
+                    <input type="password" id="password" class="w-full p-2 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-yellow-400">
+                </div>
+                <button type="submit" id="auth-btn" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-full transition-all duration-200">LOGIN</button>
+            </form>
+            <p id="auth-message" class="mt-4 text-sm text-center text-red-400"></p>
+            <button id="toggle-auth-btn" class="mt-4 text-blue-400 hover:underline">Belum punya akun? Register</button>
+        </div>
+    </div>
+
+    <div id="profile-modal" class="modal-overlay hidden">
+        <div class="slot-body p-8 rounded-2xl shadow-2xl w-full max-w-sm relative">
+            <h2 class="text-3xl font-bold text-center mb-6 text-yellow-400">PROFIL</h2>
+            <div class="space-y-4">
+                <p class="flex justify-between text-lg"><span class="text-gray-400">Username:</span> <span id="profile-username" class="font-bold text-white"></span></p>
+                <p class="flex justify-between text-lg"><span class="text-gray-400">Koin:</span> <span id="profile-credits" class="font-bold text-green-400"></span></p>
+                <p class="flex justify-between text-lg"><span class="text-gray-400">Free Spins:</span> <span id="profile-free-spins" class="font-bold text-blue-400"></span></p>
+                <p class="flex justify-between text-lg"><span class="text-gray-400">Status:</span> <span id="profile-status" class="font-bold"></span></p>
+            </div>
+            <button id="close-profile-btn" class="w-full mt-6 bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-full transition-all duration-200">Tutup</button>
+        </div>
+    </div>
+    
+    <button id="profile-btn" class="fixed top-4 left-4 bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-full hidden">Profil</button>
+    <button id="logout-btn" class="fixed top-4 right-4 bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-full hidden">Logout</button>
+
+
+    <script>
+        const symbols = ['🤖', '🧠', '💡', '💻', '⚙️', '✨', '💎'];
+        const paytable = {
+            '🤖': 50, '🧠': 20, '💡': 10, '💻': 5, '⚙️': 3, '✨': 0, '💎': 0
+        };
+        const wildSymbol = '✨';
+        const freeSpinSymbol = '💎';
+        const freeSpinBonus = 5;
+        
+        // Reel set yang lebih "kikir"
+        const reel1Symbols = ['🤖', '🧠', '💡', '💻', '⚙️', '✨', '💎', '🧠', '💡', '💻', '⚙️', '🧠', '💡', '💻', '⚙️', '✨', '💎', '⚙️', '💻', '💡'];
+        const reel2Symbols = ['🤖', '🧠', '💡', '💻', '⚙️', '✨', '💎', '🧠', '💡', '💻', '⚙️', '🧠', '💡', '💻', '⚙️', '✨', '💎', '⚙️', '💻', '💡', '✨'];
+        const reel3Symbols = ['🤖', '🧠', '💡', '💻', '⚙️', '✨', '💎', '🧠', '💡', '💻', '⚙️', '🧠', '💡', '💻', '⚙️', '✨', '💎', '⚙️', '💻', '💡', '💎'];
+
+        const maxBetValue = 100;
+        const maxPaylines = 5;
+        const jackpotContributionRate = 0.005;
+        const freeBonusAmount = 2500;
+        const paidBonusAmount = 10000;
+        const bonusInterval = 7 * 24 * 60 * 60 * 1000; // 1 minggu
+        const membershipFee = 10500;
+
+        let credits = 10000;
+        let betPerLine = 20;
+        let paylinesCount = 1;
+        let isSpinning = false;
+        let freeSpins = 0;
+        let autoSpinCount = 0;
+        let jackpot = 50000;
+        let isMember = false;
+
+        const reelElements = [
+            document.getElementById('reel1'),
+            document.getElementById('reel2'),
+            document.getElementById('reel3')
+        ];
+        const spinBtn = document.getElementById('spinBtn');
+        const autoSpin5Btn = document.getElementById('autoSpin5Btn');
+        const autoSpin10Btn = document.getElementById('autoSpin10Btn');
+        const maxBetBtn = document.getElementById('maxBetBtn');
+        const betUpBtn = document.getElementById('betUpBtn');
+        const betDownBtn = document.getElementById('betDownBtn');
+        const paylineUpBtn = document.getElementById('paylineUpBtn');
+        const paylineDownBtn = document.getElementById('paylineDownBtn');
+        const topupBtn = document.getElementById('topupBtn');
+        const buyMembershipBtn = document.getElementById('buyMembershipBtn');
+        const creditsDisplay = document.getElementById('credits');
+        const betPerLineDisplay = document.getElementById('betPerLine');
+        const paylinesCountDisplay = document.getElementById('paylinesCount');
+        const totalBetDisplay = document.getElementById('totalBet');
+        const messageDisplay = document.getElementById('message');
+        const lastWinDisplay = document.getElementById('lastWin');
+        const jackpotDisplay = document.getElementById('jackpot');
+        const logoutBtn = document.getElementById('logout-btn');
+        const profileBtn = document.getElementById('profile-btn');
+
+        // Elemen otentikasi (modal)
+        const authModal = document.getElementById('auth-modal');
+        const authTitle = authModal.querySelector('#auth-title');
+        const authBtn = authModal.querySelector('#auth-btn');
+        const authForm = authModal.querySelector('#auth-form');
+        const authMessage = authModal.querySelector('#auth-message');
+        const toggleAuthBtn = authModal.querySelector('#toggle-auth-btn');
+        const usernameInput = authModal.querySelector('#username');
+        const passwordInput = authModal.querySelector('#password');
+        
+        // Elemen profil (modal)
+        const profileModal = document.getElementById('profile-modal');
+        const profileUsername = profileModal.querySelector('#profile-username');
+        const profileCredits = profileModal.querySelector('#profile-credits');
+        const profileFreeSpins = profileModal.querySelector('#profile-free-spins');
+        const profileStatus = profileModal.querySelector('#profile-status');
+        const closeProfileBtn = profileModal.querySelector('#close-profile-btn');
+
+        let isLoginView = true;
+
+        // Inisialisasi gulungan
+        createReelSymbols(reelElements[0], reel1Symbols);
+        createReelSymbols(reelElements[1], reel2Symbols);
+        createReelSymbols(reelElements[2], reel3Symbols);
+
+        // Periksa status login saat halaman dimuat
+        checkLoginStatus();
+
+        function checkLoginStatus() {
+            const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser'));
+            if (loggedInUser) {
+                credits = loggedInUser.credits;
+                jackpot = loggedInUser.jackpot;
+                freeSpins = loggedInUser.freeSpins;
+                isMember = loggedInUser.isMember || false;
+                checkWeeklyBonus(loggedInUser);
+                hideAuthModal();
+                logoutBtn.classList.remove('hidden');
+                profileBtn.classList.remove('hidden');
+            } else {
+                showAuthModal();
+                logoutBtn.classList.add('hidden');
+                profileBtn.classList.add('hidden');
+            }
+        }
+
+        function showAuthModal() {
+            authModal.classList.remove('hidden');
+            updateUI();
+        }
+
+        function hideAuthModal() {
+            authModal.classList.add('hidden');
+            updateUI();
+        }
+        
+        function showProfileModal() {
+            const user = JSON.parse(localStorage.getItem('loggedInUser'));
+            if (user) {
+                profileUsername.textContent = user.username;
+                profileCredits.textContent = credits;
+                profileFreeSpins.textContent = freeSpins;
+                profileStatus.textContent = isMember ? 'Anggota Premium' : 'Anggota Gratis';
+                profileStatus.classList.toggle('text-green-400', isMember);
+                profileStatus.classList.toggle('text-gray-400', !isMember);
+                profileModal.classList.remove('hidden');
+            }
+        }
+
+        function hideProfileModal() {
+            profileModal.classList.add('hidden');
+        }
+
+        function saveUserData() {
+            const users = JSON.parse(localStorage.getItem('users') || '{}');
+            const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser'));
+            if (loggedInUser && users[loggedInUser.username]) {
+                const currentUser = users[loggedInUser.username];
+                currentUser.credits = credits;
+                currentUser.jackpot = jackpot;
+                currentUser.freeSpins = freeSpins;
+                currentUser.isMember = isMember;
+                localStorage.setItem('users', JSON.stringify(users));
+                localStorage.setItem('loggedInUser', JSON.stringify(currentUser));
+            }
+        }
+
+        function checkWeeklyBonus(user) {
+            const now = new Date().getTime();
+            const lastBonusCheck = user.lastBonusCheck || 0;
+            const bonusAmount = user.isMember ? paidBonusAmount : freeBonusAmount;
+
+            if (now - lastBonusCheck > bonusInterval) {
+                credits += bonusAmount;
+                user.lastBonusCheck = now;
+                saveUserData();
+                showMessage(`🎁 Selamat! Anda mendapatkan bonus mingguan ${bonusAmount} koin!`, 'text-yellow-400');
+            }
+        }
+
+        function handleAuth(event) {
+            event.preventDefault();
+            const username = usernameInput.value;
+            const password = passwordInput.value;
+            const users = JSON.parse(localStorage.getItem('users') || '{}');
+
+            if (isLoginView) {
+                if (users[username] && users[username].password === password) {
+                    localStorage.setItem('loggedInUser', JSON.stringify(users[username]));
+                    checkLoginStatus();
+                    showMessage('Login berhasil!', 'text-green-400');
+                } else {
+                    showMessage('Username atau password salah.', 'text-red-400');
+                }
+            } else {
+                if (users[username]) {
+                    showMessage('Username sudah terdaftar.', 'text-red-400');
+                } else {
+                    const newUser = { username, password, credits: 10000, jackpot: 50000, freeSpins: 0, isMember: false, lastBonusCheck: new Date().getTime() };
+                    users[username] = newUser;
+                    localStorage.setItem('users', JSON.stringify(users));
+                    localStorage.setItem('loggedInUser', JSON.stringify(newUser));
+                    checkLoginStatus();
+                    showMessage('Pendaftaran berhasil! Silakan login.', 'text-green-400');
+                }
+            }
+        }
+
+        function toggleAuthView() {
+            isLoginView = !isLoginView;
+            if (isLoginView) {
+                authTitle.textContent = 'LOGIN';
+                authBtn.textContent = 'LOGIN';
+                toggleAuthBtn.textContent = 'Belum punya akun? Register';
+            } else {
+                authTitle.textContent = 'REGISTER';
+                authBtn.textContent = 'REGISTER';
+                toggleAuthBtn.textContent = 'Sudah punya akun? Login';
+            }
+            authMessage.textContent = '';
+        }
+
+        function logout() {
+            localStorage.removeItem('loggedInUser');
+            credits = 0; // Reset saldo
+            jackpot = 50000; // Reset jackpot
+            freeSpins = 0; // Reset free spins
+            isMember = false; // Reset membership
+            checkLoginStatus();
+        }
+        
+        authForm.addEventListener('submit', handleAuth);
+        toggleAuthBtn.addEventListener('click', toggleAuthView);
+        logoutBtn.addEventListener('click', logout);
+        profileBtn.addEventListener('click', showProfileModal);
+        closeProfileBtn.addEventListener('click', hideProfileModal);
+        
+        function createReelSymbols(reelElement, reelSet) {
+            reelSet.forEach(s => {
+                const span = document.createElement('span');
+                span.classList.add('symbol');
+                span.textContent = s;
+                reelElement.appendChild(span);
+            });
+        }
+
+        function updateUI() {
+            creditsDisplay.textContent = credits;
+            betPerLineDisplay.textContent = betPerLine;
+            paylinesCountDisplay.textContent = paylinesCount;
+            const totalBet = betPerLine * paylinesCount;
+            totalBetDisplay.textContent = totalBet;
+            jackpotDisplay.textContent = jackpot;
+            
+            if (autoSpinCount > 0) {
+                spinBtn.textContent = `AUTO (${autoSpinCount})`;
+            } else if (freeSpins > 0) {
+                spinBtn.textContent = `FREE SPIN (${freeSpins})`;
+            } else {
+                spinBtn.textContent = isSpinning ? 'STOP' : 'SPIN';
+            }
+            
+            const isDisabled = (credits < totalBet && freeSpins === 0);
+            spinBtn.disabled = isDisabled && !isSpinning;
+            autoSpin5Btn.disabled = isDisabled || isSpinning;
+            autoSpin10Btn.disabled = isDisabled || isSpinning;
+            maxBetBtn.disabled = isSpinning;
+            betUpBtn.disabled = isSpinning;
+            betDownBtn.disabled = isSpinning;
+            paylineUpBtn.disabled = isSpinning;
+            paylineDownBtn.disabled = isSpinning;
+            topupBtn.disabled = isSpinning;
+            buyMembershipBtn.disabled = isSpinning;
+
+            spinBtn.classList.toggle('bg-gray-500', isDisabled && !isSpinning);
+            spinBtn.classList.toggle('bg-green-500', !isDisabled || isSpinning);
+            
+            if (credits <= 0) {
+                topupBtn.classList.add('pulse-red');
+            } else {
+                topupBtn.classList.remove('pulse-red');
+            }
+        }
+
+        let stopTimers = [];
+
+        function spinReels() {
+            if (isSpinning) {
+                stopTimers.forEach(timer => clearTimeout(timer));
+                stopTimers = [];
+                isSpinning = false;
+                checkWinOnStop();
+                return;
+            }
+            
+            const totalBet = betPerLine * paylinesCount;
+            if (freeSpins > 0) {
+                freeSpins--;
+            } else {
+                if (credits < totalBet) {
+                    showMessage('Koin habis! Silakan top up.', 'text-red-400 animate-pulse');
+                    isSpinning = false;
+                    autoSpinCount = 0;
+                    updateUI();
+                    return;
+                }
+                credits -= totalBet;
+                jackpot += totalBet * jackpotContributionRate;
+            }
+            
+            saveUserData();
+
+            isSpinning = true;
+            showMessage('Semoga beruntung!', 'text-gray-300');
+            updateUI();
+            clearHighlights();
+
+            const finalPositions = [
+                Math.floor(Math.random() * reel1Symbols.length),
+                Math.floor(Math.random() * reel2Symbols.length),
+                Math.floor(Math.random() * reel3Symbols.length)
+            ];
+
+            const reelStopDelay = 500;
+            
+            reelElements[0].style.transition = 'none';
+            reelElements[1].style.transition = 'none';
+            reelElements[2].style.transition = 'none';
+            
+            reelElements[0].style.transform = 'translateY(0)';
+            reelElements[1].style.transform = 'translateY(0)';
+            reelElements[2].style.transform = 'translateY(0)';
+
+            // Auto-stopping logic
+            stopTimers.push(setTimeout(() => stopReel(reelElements[0], finalPositions[0]), 500));
+            stopTimers.push(setTimeout(() => stopReel(reelElements[1], finalPositions[1]), 500 + reelStopDelay));
+            stopTimers.push(setTimeout(() => stopReel(reelElements[2], finalPositions[2]), 500 + reelStopDelay * 2));
+
+            stopTimers.push(setTimeout(() => {
+                isSpinning = false;
+                checkWinOnStop();
+                updateUI();
+                if (autoSpinCount > 0 && credits >= totalBet) {
+                    autoSpinCount--;
+                    setTimeout(spinReels, 1500);
+                } else {
+                    autoSpinCount = 0;
+                }
+            }, 2000));
+        }
+
+        function stopReel(reelElement, finalPosition) {
+            const symbolHeight = 100;
+            const offset = finalPosition * symbolHeight;
+            reelElement.style.transition = 'transform 2s cubic-bezier(0.25, 1, 0.5, 1)';
+            reelElement.style.transform = `translateY(-${offset}px)`;
+        }
+
+        function checkWinOnStop() {
+            const results = [
+                getVisibleSymbols(reel1Symbols, getFinalPosition(reelElements[0])),
+                getVisibleSymbols(reel2Symbols, getFinalPosition(reelElements[1])),
+                getVisibleSymbols(reel3Symbols, getFinalPosition(reelElements[2]))
+            ];
+            checkWin(results);
+        }
+
+        function getFinalPosition(reelElement) {
+            const style = window.getComputedStyle(reelElement);
+            const matrix = new WebKitCSSMatrix(style.transform);
+            const translateY = matrix.m42;
+            const symbolHeight = 100;
+            return Math.round(Math.abs(translateY) / symbolHeight);
+        }
+
+        function getVisibleSymbols(reelSet, finalPosition) {
+            const numSymbols = reelSet.length;
+            const topIndex = (finalPosition - 1 + numSymbols) % numSymbols;
+            const middleIndex = finalPosition;
+            const bottomIndex = (finalPosition + 1) % numSymbols;
+            return [reelSet[topIndex], reelSet[middleIndex], reelSet[bottomIndex]];
+        }
+
+        function checkWin(results) {
+            let totalWinnings = 0;
+            const paylines = [
+                [results[0][1], results[1][1], results[2][1]], // Garis tengah (payline 1)
+                [results[0][0], results[1][0], results[2][0]], // Garis atas (payline 2)
+                [results[0][2], results[1][2], results[2][2]], // Garis bawah (payline 3)
+                [results[0][0], results[1][1], results[2][2]], // Diagonal atas-bawah (payline 4)
+                [results[0][2], results[1][1], results[2][0]]  // Diagonal bawah-atas (payline 5)
+            ];
+            
+            let freeSpinCount = 0;
+            results.forEach(reelResult => {
+                freeSpinCount += reelResult.filter(s => s === freeSpinSymbol).length;
+            });
+            
+            if (freeSpinCount >= 3) {
+                freeSpins += freeSpinBonus;
+                showMessage(`🎉 BONUS! Anda mendapatkan ${freeSpinBonus} FREE SPINS! 🎉`, 'text-blue-400');
+            }
+
+            let winDetected = false;
+            for (let i = 0; i < paylinesCount; i++) {
+                const line = paylines[i];
+                const winAmount = calculateLineWin(line);
+                if (winAmount > 0) {
+                    totalWinnings += winAmount;
+                    winDetected = true;
+                    highlightWinningLine(i, results);
+                }
+            }
+
+            // Cek Jackpot
+            if (results[0][1] === '🤖' && results[1][1] === '🤖' && results[2][1] === '🤖') {
+                totalWinnings += jackpot;
+                jackpot = 0;
+                showMessage(`🌟 JACKPOT! Anda memenangkan ${totalWinnings} koin! 🌟`, 'text-yellow-400 font-bold');
+            }
+
+            credits += totalWinnings;
+
+            if (totalWinnings > 0) {
+                showMessage(`🎉 MENANG! Anda menang ${totalWinnings} koin! 🎉`, 'text-green-400');
+            } else if (!winDetected && freeSpinCount < 3) {
+                showMessage('Coba lagi! 😞', 'text-red-400');
+            }
+            lastWinDisplay.textContent = totalWinnings;
+            saveUserData();
+        }
+
+        function calculateLineWin(line) {
+            const [s1, s2, s3] = line;
+            let winAmount = 0;
+
+            const isWildMatch = (sym1, sym2) => sym1 === sym2 || sym1 === wildSymbol || sym2 === wildSymbol;
+            if (isWildMatch(s1, s2) && isWildMatch(s2, s3)) {
+                let baseSymbol = s1;
+                if (s1 === wildSymbol && s2 !== wildSymbol) baseSymbol = s2;
+                if (s1 === wildSymbol && s2 === wildSymbol && s3 !== wildSymbol) baseSymbol = s3;
+                
+                const multiplier = paytable[baseSymbol];
+                if (multiplier) {
+                    winAmount = betPerLine * multiplier;
+                }
+            }
+            return winAmount;
+        }
+
+        function highlightWinningLine(lineIndex, results) {
+            const reelSymbolSets = [reel1Symbols, reel2Symbols, reel3Symbols];
+            const reelElements = [document.getElementById('reel1'), document.getElementById('reel2'), document.getElementById('reel3')];
+            
+            const offsets = [
+                [1, 1, 1], // Garis tengah
+                [0, 0, 0], // Garis atas
+                [2, 2, 2], // Garis bawah
+                [0, 1, 2], // Diagonal atas-bawah
+                [2, 1, 0]  // Diagonal bawah-atas
+            ];
+            
+            reelElements.forEach((reel, reelIndex) => {
+                const finalPosition = getFinalPosition(reel);
+                const highlightOffset = offsets[lineIndex][reelIndex] - 1;
+                const highlightIndex = (finalPosition + highlightOffset + reelSymbolSets[reelIndex].length) % reelSymbolSets[reelIndex].length;
+                
+                const reelChild = reel.children[highlightIndex];
+                if (reelChild) {
+                    reelChild.classList.add('highlight');
+                }
+            });
+        }
+        
+        function clearHighlights() {
+            document.querySelectorAll('.highlight').forEach(el => {
+                el.classList.remove('highlight');
+            });
+        }
+
+        function showMessage(text, colorClass) {
+            messageDisplay.textContent = text;
+            messageDisplay.className = `mt-4 text-center text-xl font-semibold ${colorClass}`;
+        }
+
+        function topUpCredits() {
+            credits += 10000;
+            showMessage('🚀 Top Up berhasil! 10000 koin ditambahkan.', 'text-indigo-400');
+            updateUI();
+            saveUserData();
+        }
+
+        function buyMembership() {
+            if (isMember) {
+                showMessage('Anda sudah menjadi anggota!', 'text-red-400');
+                return;
+            }
+            
+            const users = JSON.parse(localStorage.getItem('users') || '{}');
+            const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser'));
+            const currentUser = users[loggedInUser.username];
+
+            // Simulasi pembayaran
+            if (currentUser.credits < membershipFee) {
+                 showMessage('Koin tidak cukup untuk membayar membership!', 'text-red-400');
+                 return;
+            }
+
+            currentUser.credits -= membershipFee;
+            isMember = true;
+            currentUser.isMember = true;
+            currentUser.lastBonusCheck = new Date().getTime(); // Reset timer bonus
+
+            localStorage.setItem('users', JSON.stringify(users));
+            localStorage.setItem('loggedInUser', JSON.stringify(currentUser));
+            
+            credits -= membershipFee;
+            credits += paidBonusAmount; // Langsung berikan bonus pertama
+            
+            showMessage('🚀 Pembayaran berhasil! Anda sekarang adalah anggota premium dan mendapatkan bonus instan!', 'text-yellow-400');
+            updateUI();
+            saveUserData();
+        }
+
+        betUpBtn.addEventListener('click', () => {
+            if (betPerLine < maxBetValue) { betPerLine += 10; updateUI(); }
+        });
+        betDownBtn.addEventListener('click', () => {
+            if (betPerLine > 10) { betPerLine -= 10; updateUI(); }
+        });
+        paylineUpBtn.addEventListener('click', () => {
+            if (paylinesCount < maxPaylines) { paylinesCount++; updateUI(); }
+        });
+        paylineDownBtn.addEventListener('click', () => {
+            if (paylinesCount > 1) { paylinesCount--; updateUI(); }
+        });
+        maxBetBtn.addEventListener('click', () => {
+            betPerLine = maxBetValue;
+            paylinesCount = maxPaylines;
+            updateUI();
+            spinReels();
+        });
+        spinBtn.addEventListener('click', spinReels);
+        autoSpin5Btn.addEventListener('click', () => {
+            autoSpinCount = 5;
+            spinReels();
+        });
+        autoSpin10Btn.addEventListener('click', () => {
+            autoSpinCount = 10;
+            spinReels();
+        });
+        topupBtn.addEventListener('click', topUpCredits);
+        buyMembershipBtn.addEventListener('click', buyMembership);
+
+        updateUI();
+    </script>
+</body>
+</html>
